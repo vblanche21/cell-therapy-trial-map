@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Cell Therapy Trial Map</title>
+<meta name="description" content="CAR-T and TCR-T trials worldwide since 2008, from ClinicalTrials.gov and the WHO ICTRP registries: an interactive map, charts and the full trial list, updated monthly.">
+<meta property="og:title" content="The Cell Therapy Trial Map – live data">
+<meta property="og:description" content="Every CAR-T and TCR-T trial in the map, by year, country and registry. Updated with each edition of the LinkedIn newsletter.">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #f6f6f4; --panel: #ffffff; --fg: #1b1b1b; --muted: #5f6368; --line: #e2e2df;
+    --land: #e5e5e3; --land-pick: #c4c4c0; --grid: #ececea; --axis: #b9b9b5; --tip: #ffffff;
+    --all: #c8341f; --invivo: #1f6fb4;
+    --china: #e08214; --usa: #222222; --europe: #4d9a54; --row: #8a78b8;
+    --shadow: 0 4px 16px rgba(0, 0, 0, .12);
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212; --panel: #1c1c1c; --fg: #ececec; --muted: #a7a7a7; --line: #333333;
+      --land: #2d2d2d; --land-pick: #4a4a4a; --grid: #2a2a2a; --axis: #555555; --tip: #262626;
+      --all: #e0573f; --invivo: #4f97d8;
+      --china: #f0a04b; --usa: #e2e2e2; --europe: #6cbf74; --row: #a898d6;
+      --shadow: 0 4px 16px rgba(0, 0, 0, .5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.5; }
+  a { color: inherit; }
+  .page { max-width: 76rem; margin: 0 auto; padding: 28px 16px 48px; display: grid; gap: 20px; }
+  .kicker { margin: 0; color: var(--all); font-weight: 700; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+  h1 { margin: 2px 0 6px; font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; }
+  .lede { margin: 0; max-width: 60rem; font-size: 17px; }
+  .lede b { font-variant-numeric: tabular-nums; }
+  .byline { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+  .byline a { white-space: nowrap; }
+  .note { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 9.5rem), 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+  .tile-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .tile-value { font-size: 30px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile-delta { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+  .card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+  h2 { margin: 0; font-size: 18px; font-weight: 650; }
+  h3 { margin: 10px 0 0; font-size: 16px; font-weight: 650; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 16px; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .btn { font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--muted); }
+  .year-big { font-size: 28px; font-weight: 700; color: var(--all); font-variant-numeric: tabular-nums; min-width: 3.2em; }
+  .range { flex: 1 1 12rem; min-width: 10rem; accent-color: var(--all); }
+  .picked { font-size: 14px; color: var(--muted); }
+  .picked b { color: var(--fg); }
+  h2 .picked { font-size: inherit; color: inherit; }
+  .linkbtn { font: inherit; color: var(--fg); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+  .map { position: relative; }
+  .map svg { display: block; width: 100%; height: auto; }
+  .land { fill: var(--land); stroke: var(--panel); stroke-width: .6; }
+  .land.is-picked { fill: var(--land-pick); }
+  .bub circle { vector-effect: non-scaling-stroke; }
+  .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; color: var(--muted); font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { display: inline-block; flex: none; width: 11px; height: 11px; border-radius: 50%; }
+  .sw-line { display: inline-block; width: 18px; height: 0; border-top: 2.5px solid; }
+  .sizes { display: inline-flex; align-items: flex-end; gap: 10px; }
+  .tip { position: absolute; z-index: 5; pointer-events: none; display: none; background: var(--tip); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); padding: 6px 10px; font-size: 13px; line-height: 1.5; white-space: nowrap; }
+  .tip-head { color: var(--muted); }
+  .tip-row { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .tip-row .v { margin-left: auto; padding-left: 14px; font-weight: 650; }
+  .lines { position: relative; min-height: 240px; }
+  .lines svg { display: block; }
+  .axis text { fill: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .end text { fill: var(--fg); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .gridline { stroke: var(--grid); }
+  .baseline { stroke: var(--axis); }
+  .rule { stroke: var(--muted); stroke-dasharray: 3 3; }
+  .series { fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .series.dashed { stroke-dasharray: 5 4; stroke-linecap: butt; }
+  .bars { display: grid; gap: 14px; }
+  .bar-group { display: grid; gap: 5px; }
+  .bar-title { color: var(--muted); font-size: 13px; }
+  .bar-row { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr 2.6rem; align-items: center; gap: 10px; font-size: 14px; }
+  .bar-track { height: 12px; }
+  .bar { display: block; height: 100%; border-radius: 3px; background: var(--invivo); min-width: 1px; }
+  .bar-val { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 26rem; overflow: auto; -webkit-overflow-scrolling: touch; }
+  .scroll.tall { max-height: 40rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .num { text-align: right; }
+  .pick tbody tr { cursor: pointer; }
+  .pick tbody tr:hover { background: color-mix(in srgb, var(--fg) 5%, transparent); }
+  tr.is-picked { background: color-mix(in srgb, var(--all) 12%, transparent); }
+  .cellbar { display: inline-block; height: 8px; margin-left: 8px; border-radius: 2px; background: var(--all); opacity: .55; vertical-align: middle; }
+  .sort { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .sort:hover { color: var(--fg); }
+  .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .input { font: inherit; font-size: 14px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .search { flex: 1 1 14rem; min-width: 0; }
+  .check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+  .count { color: var(--muted); font-size: 14px; }
+  .trials { container-type: inline-size; }
+  .ttable td:nth-child(2) { min-width: 16rem; max-width: 30rem; }
+  .ttable td:nth-child(3) { min-width: 8rem; max-width: 14rem; }
+  .ttable td:nth-child(10) { min-width: 10rem; max-width: 16rem; }
+  .ttable td:nth-child(4), .ttable td:nth-child(5) { white-space: nowrap; }
+  @container (max-width: 46rem) {
+    .ttable :is(th, td):is(:nth-child(5), :nth-child(6), :nth-child(7), :nth-child(10), :nth-child(11), :nth-child(12)) { display: none; }
+  }
+  .method p, .method li { max-width: 62rem; }
+  .method p { margin: 0; }
+  .method ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+  .loading { color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 13px; text-align: center; }
+  @media (max-width: 560px) {
+    .card { padding: 14px; }
+    .tile-value { font-size: 26px; }
+    .lede { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header id="summary">
+    <p class="kicker">Live data · LinkedIn newsletter</p>
+    <h1>The Cell Therapy Trial Map</h1>
+    <p class="lede" id="lede"><span class="loading">Loading the trial data…</span></p>
+    <p class="byline">By Vincent Blancheteau · built in R from ClinicalTrials.gov and the WHO ICTRP registries · data as of <span id="data-date">—</span><span id="newsletter-link" hidden> · <a href="#">subscribe to the newsletter on LinkedIn</a></span> · <a href="data/trials.csv" download>download the trial list (CSV)</a></p>
+  </header>
+
+  <section id="figures" aria-label="Running trials">
+    <p class="note" style="margin-bottom:8px">Trials running in <b id="w-year">—</b>, with the change from <span id="w-prev">—</span>. A trial with sites in several regions counts in each.</p>
+    <div class="tiles">
+      <div class="tile"><div class="tile-label">Worldwide</div><div class="tile-value" data-k="world">—</div><div class="tile-delta" data-d="world">&nbsp;</div></div>
+      <div class="tile"><div class="tile-label"><i class="sw" style="background:var(--china)"></i>China</div><div class="tile-value" data-k="china">—</div><div class="tile-delta" data-d="china">&nbsp;</div></div>
+      <div class="tile"><div class="tile-label"><i class="sw" style="background:var(--usa)"></i>USA</div><div class="tile-value" data-k="usa">—</div><div class="tile-delta" data-d="usa">&nbsp;</div></div>
+      <div class="tile"><div class="tile-label"><i class="sw" style="background:var(--europe)"></i>Europe</div><div class="tile-value" data-k="europe">—</div><div class="tile-delta" data-d="europe">&nbsp;</div></div>
+      <div class="tile"><div class="tile-label"><i class="sw" style="background:var(--row)"></i>Rest of world</div><div class="tile-value" data-k="rest_of_world">—</div><div class="tile-delta" data-d="rest_of_world">&nbsp;</div></div>
+      <div class="tile"><div class="tile-label"><i class="sw" style="background:var(--invivo)"></i>In vivo</div><div class="tile-value" data-k="in_vivo">—</div><div class="tile-delta" data-d="in_vivo">&nbsp;</div></div>
+    </div>
+    <p class="note" style="margin-top:8px">The latest year is still in progress, and many trials are registered months after they start, so its count usually rises at the next update.</p>
+  </section>
+
+  <section class="card" id="map">
+    <div class="card-head">
+      <h2>Where trials are running in <span class="sel-year">—</span></h2>
+      <span class="picked" hidden>Trial list below: <b class="sel-country">—</b> · <button class="linkbtn clear-country" type="button">show all countries</button></span>
+    </div>
+    <div class="controls">
+      <button class="btn" id="play" type="button" aria-pressed="false"><span id="play-go">▶ Play the years</span><span id="play-stop" hidden>❚❚ Pause</span></button>
+      <span class="year-big sel-year">—</span>
+      <input class="range" id="year" type="range" step="1" aria-label="Year shown" disabled>
+    </div>
+    <div class="map" id="map-box">
+      <svg id="map-svg" viewBox="0 0 1000 439" role="img" aria-label="World map of running CAR-T and TCR-T trials per country"><g id="land"></g><g id="bubbles"></g></svg>
+      <div class="tip" id="map-tip"></div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--all);opacity:.6"></i>All trials (mostly ex vivo)</span>
+      <span><i class="sw" style="background:var(--invivo)"></i>In vivo</span>
+      <span class="sizes" id="sizes"></span>
+    </div>
+    <p class="note">Bubble area is the number of trials running with at least one site in the country; the blue part is in vivo trials. Hover or tap a bubble for its numbers, and click it to list its trials below. Most registries list countries, not cities, so each country has one bubble.</p>
+  </section>
+
+  <div class="grid2">
+    <section class="card" id="regions">
+      <h2>Running trials by region</h2>
+      <p class="note">A trial counts in a year if it had started and not yet ended. Dashed line: in vivo trials worldwide. The dotted rule marks the year shown on the map; click the chart to pick another year.</p>
+      <div class="lines" id="lines"></div>
+    </section>
+    <section class="card" id="in-vivo">
+      <h2>In vivo trials running in <span class="sel-year">—</span></h2>
+      <p class="note">In vivo: a vector, mRNA in lipid nanoparticles, circular RNA or vesicles carry the CAR or TCR gene into the patient, and the cells are made in the body. Ex vivo: the cells are engineered in a lab and infused. A trial counts in each region where it has a site.</p>
+      <p class="note" id="no-invivo" hidden>No in vivo trial was running in this year.</p>
+      <div class="bars" id="invivo"></div>
+    </section>
+  </div>
+
+  <div class="grid2">
+    <section class="card" id="countries">
+      <h2>Countries in <span class="sel-year">—</span></h2>
+      <p class="note">Trials running with at least one site in the country. Click a row to list its trials below.</p>
+      <div class="scroll">
+        <table class="pick" id="ctable">
+          <thead><tr><th>Country</th><th>Region</th><th class="num">Running trials</th><th class="num">In vivo</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card" id="registries">
+      <h2>Where the records come from</h2>
+      <p class="note">Trials kept from each registry after removing duplicates; a trial found in several registries is kept once, under ClinicalTrials.gov when it is there. Registries without completion dates (mostly ChiCTR) count fewer running trials, because their end dates are estimated.</p>
+      <div class="scroll">
+        <table id="rtable">
+          <thead><tr><th>Registry</th><th class="num">Trials in the data</th><th class="num">Running in <span class="sel-year">—</span></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="card trials" id="trials">
+    <div class="card-head">
+      <h2><span id="when-year">Trials running in <span class="sel-year">—</span></span><span id="when-all" hidden>All trials in the data</span><span class="picked" hidden>, <span class="sel-country">—</span></span></h2>
+      <span class="count"><b id="tcount">—</b> trials</span>
+    </div>
+    <div class="filters">
+      <input class="input search" id="q" type="search" placeholder="Search title, sponsor, condition, ID, country" aria-label="Search trials">
+      <select class="input" id="approach" aria-label="Approach">
+        <option value="">In vivo and ex vivo</option>
+        <option value="In vivo">In vivo only</option>
+        <option value="Ex vivo">Ex vivo only</option>
+      </select>
+      <select class="input" id="indication" aria-label="Indication">
+        <option value="">All indications</option>
+        <option value="Cancer">Cancer</option>
+        <option value="Autoimmune &amp; immune-mediated">Autoimmune &amp; immune-mediated</option>
+        <option value="Other">Other</option>
+      </select>
+      <label class="check"><input id="allyears" type="checkbox"> All years</label>
+      <span class="picked" hidden><button class="linkbtn clear-country" type="button">Show all countries</button></span>
+    </div>
+    <div class="scroll tall">
+      <table class="ttable" id="ttable">
+        <thead><tr>
+          <th aria-sort="none"><button class="sort" type="button" data-key="id">ID</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="title">Title</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="countries">Countries</button></th>
+          <th aria-sort="descending"><button class="sort" type="button" data-key="start">Start</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="end">Counted until</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="status">Status</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="phase">Phase</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="approach">Approach</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="indication">Indication</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="sponsor">Sponsor</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="registry">Registry</button></th>
+          <th aria-sort="none"><button class="sort" type="button" data-key="end_rule">End date from</button></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note">IDs open the record in its registry. "Counted until" is the completion date, the data date for ongoing trials, or an estimate (see "End date from").</p>
+  </section>
+
+  <section class="card method" id="method">
+    <h2>How the data was built</h2>
+    <ul>
+      <li><b>Sources.</b> ClinicalTrials.gov (API v2, interventional studies; searches for CAR-T and TCR-T terms and product names, plus in vivo products) and the WHO ICTRP search portal, which gathers the WHO primary registries: ChiCTR, EU CTIS and EU CTR, jRCT, CTRI, ANZCTR, CRIS, DRKS, ISRCTN, IRCT, ReBEC, TCTR, PACTR and others.</li>
+      <li><b>Duplicates.</b> The same trial often sits in several registries. ICTRP copies of ClinicalTrials.gov records were dropped; other records were linked through shared IDs (NCT or EudraCT numbers) or identical titles, then through a similarity check (same country, start within about a year, same cell type, and the same product code, or close sponsor and title words).</li>
+      <li><b>Classes.</b> Rules on titles, interventions and conditions sort each trial into CAR-T or TCR-T, in vivo or ex vivo, and cancer, autoimmune and immune-mediated, or other. In vivo trials were checked by hand. CAR-NK, CAR-macrophage and TIL trials are left out, as are supportive-care studies around CAR-T (rehabilitation, imaging, drugs to prevent or treat CRS and ICANS, infections after infusion).</li>
+      <li><b>Running years.</b> A trial counts in a year if it started by the end of that year and had not ended before it. The end is the completion date; ongoing ClinicalTrials.gov trials run until the data date; records in other registries without a completion date get the median length of completed ClinicalTrials.gov trials of the same phase. Withdrawn and not-yet-recruiting trials are left out.</li>
+      <li><b>Places.</b> A trial counts once in each country where it lists a site, and once in each region. Country names follow Natural Earth, so Hong Kong and Taiwan appear apart from China. Map projection: Equal Earth.</li>
+    </ul>
+    <h3>Limits</h3>
+    <ul>
+      <li>Counts are trials, not patients, and say nothing about trial size or results.</li>
+      <li>Trials registered only on China's drug agency platform (CDE) are missing, because it is not part of the WHO network. No trial in these registries lists a site in Africa.</li>
+      <li>Estimated end dates (mostly ChiCTR) can make a trial count for too long or too short. ClinicalTrials.gov records with an "unknown" status, not updated for years, stop counting at their old end date even if the trial goes on.</li>
+      <li>Some duplicates remain, mostly among Chinese records, and rules can misclassify a few trials. Corrections are welcome.</li>
+    </ul>
+    <h3>Updates</h3>
+    <ul>
+      <li>3 Nov 2026: ClinicalTrials.gov and the main WHO ICTRP search downloaded again; five trials of drugs given for CAR-T side effects removed by a stricter rule. Edition 1 of the newsletter uses these data. This public page first published.</li>
+      <li>28 Oct 2026: version 2. Added the WHO registry network, duplicate removal and the in vivo / ex vivo split.</li>
+      <li>22 Oct 2026: version 1, ClinicalTrials.gov only (animated map posted on LinkedIn).</li>
+    </ul>
+  </section>
+
+  <footer>The Cell Therapy Trial Map · a side project by Vincent Blancheteau · data from ClinicalTrials.gov and the WHO ICTRP; outlines from Natural Earth · charts drawn with d3</footer>
+</main>
+
+<script src="d3.min.js"></script>
+<script>
+/* Paste the address of the newsletter on LinkedIn between the quotes to show a "subscribe" link. */
+const NEWSLETTER_URL = "";
+
+(() => {
+  "use strict";
+  const FIRST_YEAR = 2008;
+  const fmt = d3.format(",");
+  const signed = (v) => (v > 0 ? "+" : v < 0 ? "−" : "±") + fmt(Math.abs(v));
+  const REGIONS = [["China", "china"], ["USA", "usa"], ["Europe", "europe"], ["Rest of world", "rest_of_world"]];
+  const COLOR = { China: "var(--china)", USA: "var(--usa)", Europe: "var(--europe)", "Rest of world": "var(--row)", "In vivo": "var(--invivo)" };
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const S = { year: null, country: null, q: "", approach: "", indication: "", allyears: false, sort: { key: "start", dir: -1 }, playing: false };
+  let D = null; // computed data
+
+  /* ---------- Calculations (same rules as the R script) ---------- */
+  function compute(trials, world) {
+    const region = new Map(world.map((c) => [c.country, c.region]));
+    const where = new Map(world.filter((c) => c.x !== "").map((c) => [c.country, { x: +c.x, y: +c.y }]));
+    const T = trials.map((r) => {
+      const countries = r.countries ? r.countries.split("; ") : [];
+      return { ...r, from: +r.start_year, to: +r.end_year, countryList: countries, regions: new Set(countries.map((c) => region.get(c))) };
+    });
+    const last = d3.max(T, (t) => t.to);
+    const years = d3.range(FIRST_YEAR, last + 1);
+    const byYear = years.map((year) => {
+      const run = T.filter((t) => t.from <= year && t.to >= year);
+      const n = (f) => run.filter(f).length;
+      return {
+        year, world: run.length,
+        china: n((t) => t.regions.has("China")), usa: n((t) => t.regions.has("USA")),
+        europe: n((t) => t.regions.has("Europe")), rest_of_world: n((t) => t.regions.has("Rest of world")),
+        in_vivo: n((t) => t.approach === "In vivo"),
+        countries: new Set(run.flatMap((t) => t.countryList)).size,
+      };
+    });
+    const countryYear = [];
+    for (const year of years) {
+      const all = new Map(), iv = new Map();
+      for (const t of T) {
+        if (t.from > year || t.to < year) continue;
+        for (const c of new Set(t.countryList)) {
+          all.set(c, (all.get(c) || 0) + 1);
+          if (t.approach === "In vivo") iv.set(c, (iv.get(c) || 0) + 1);
+        }
+      }
+      for (const [country, n] of all) countryYear.push({ year, country, region: region.get(country), all: n, in_vivo: iv.get(country) || 0 });
+    }
+    const groups = [["Where", ["Worldwide", "China", "USA", "Europe", "Rest of world"]],
+                    ["Indication", ["Cancer", "Autoimmune & immune-mediated", "Other"]],
+                    ["Cell type", ["CAR-T", "TCR-T"]]];
+    const ivT = T.filter((t) => t.approach === "In vivo").map((t) => ({ from: t.from, to: t.to, labels: new Set(["Worldwide", t.indication, t.modality, ...t.regions]) }));
+    const inVivo = [];
+    for (const year of years) {
+      const run = ivT.filter((t) => t.from <= year && t.to >= year);
+      if (!run.length) continue;
+      for (const [group, labels] of groups) for (const label of labels) inVivo.push({ year, group, label, trials: run.filter((t) => t.labels.has(label)).length });
+    }
+    const names = [...new Set(T.map((t) => t.registry))];
+    const registries = [];
+    for (const year of years) for (const registry of names) {
+      const own = T.filter((t) => t.registry === registry);
+      registries.push({ year, registry, in_data: own.length, running: own.filter((t) => t.from <= year && t.to >= year).length });
+    }
+    const now = byYear[byYear.length - 1], before = byYear[byYear.length - 2];
+    const chinaLeads = now.china > now.usa;
+    const leads = (y) => (chinaLeads ? y.china > y.usa : y.usa > y.china);
+    let i = byYear.length - 1;
+    while (i > 0 && leads(byYear[i - 1])) i--;
+    const dataDate = T.filter((t) => t.end_rule === "ongoing: until today").map((t) => t.end).sort().pop();
+    return { T, world, where, years, byYear, countryYear, inVivo, registries, now, before,
+             leader: chinaLeads ? "China" : "the USA", runnerUp: chinaLeads ? "the USA" : "China", leaderSince: byYear[i].year, dataDate,
+             maxAll: d3.max(countryYear, (r) => r.all) };
+  }
+
+  /* ---------- Helpers ---------- */
+  const year = () => (D && D.years.includes(S.year) ? S.year : D ? D.years[D.years.length - 1] : null);
+  const el = (tag, props = {}, ...kids) => { const e = document.createElement(tag); Object.assign(e, props); e.append(...kids); return e; };
+  function tip(box, node, head, rows, x, y) {
+    node.replaceChildren(el("div", { className: "tip-head", textContent: head }),
+      ...rows.map(([color, name, value]) => {
+        const r = el("div", { className: "tip-row" });
+        if (color) { const s = el("i", { className: "sw" }); s.style.background = color; r.append(s); }
+        r.append(el("span", { textContent: name }), el("span", { className: "v", textContent: value }));
+        return r;
+      }));
+    node.style.display = "block";
+    const w = node.offsetWidth, h = node.offsetHeight, bw = box.clientWidth, bh = box.clientHeight;
+    let left = x + 14; if (left + w > bw) left = Math.max(0, x - 14 - w);
+    let topY = y + 12; if (topY + h > bh) topY = Math.max(0, bh - h);
+    node.style.left = left + "px"; node.style.top = topY + "px";
+  }
+  function setHash() {
+    const p = new URLSearchParams();
+    if (S.year && D && S.year !== D.years[D.years.length - 1]) p.set("year", S.year);
+    if (S.country) p.set("country", S.country);
+    const h = p.toString();
+    history.replaceState(null, "", h ? "#" + h : location.pathname + location.search);
+  }
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (p.get("year")) S.year = +p.get("year");
+    if (p.get("country")) S.country = p.get("country");
+  }
+  function set(patch) { Object.assign(S, patch); setHash(); update(); }
+
+  /* ---------- Static parts ---------- */
+  function renderSummary() {
+    const n = D.now, b = D.before;
+    $("#lede").replaceChildren(
+      "In ", el("b", { textContent: n.year }), ", ", el("b", { textContent: fmt(n.world) }),
+      " CAR-T and TCR-T trials are running, with sites in ", el("b", { textContent: n.countries }), " countries. Since ",
+      el("b", { textContent: D.leaderSince }), ", ", el("b", { textContent: D.leader }), " has had more running trials than ",
+      el("b", { textContent: D.runnerUp }), " every year. In vivo trials, where the engineered cells are made inside the patient's body, number ",
+      el("b", { textContent: fmt(n.in_vivo) }), ", against ", el("b", { textContent: fmt(b.in_vivo) }), " a year earlier.");
+    $("#data-date").textContent = D.dataDate ? d3.utcFormat("%-d %b %Y")(new Date(D.dataDate)) : "—";
+    $("#w-year").textContent = n.year; $("#w-prev").textContent = b.year;
+    for (const t of $$("[data-k]")) t.textContent = fmt(n[t.dataset.k]);
+    for (const t of $$("[data-d]")) t.textContent = signed(n[t.dataset.d] - b[t.dataset.d]);
+    if (NEWSLETTER_URL) { const s = $("#newsletter-link"); s.hidden = false; s.querySelector("a").href = NEWSLETTER_URL; }
+    const r = $("#year"); r.min = D.years[0]; r.max = D.years[D.years.length - 1]; r.disabled = false;
+    $("#land").replaceChildren();
+    d3.select("#land").selectAll("path").data(D.world.filter((c) => c.path)).join("path").attr("class", "land").attr("d", (c) => c.path);
+  }
+
+  /* ---------- Map ---------- */
+  const rScale = () => d3.scaleSqrt([0, D.maxAll], [0, 34]);
+  let mapPts = [];
+  function renderMap() {
+    const y = year(), r = rScale();
+    d3.select("#land").selectAll("path").classed("is-picked", (c) => c.country === S.country);
+    const rows = D.countryYear.filter((d) => d.year === y && D.where.has(d.country))
+      .map((d) => ({ ...d, ...D.where.get(d.country), r: r(d.all), ri: r(d.in_vivo) }))
+      .sort((a, b) => b.all - a.all);
+    mapPts = rows;
+    const dur = reduced() ? 0 : 450;
+    const g = d3.select("#bubbles").selectAll("g.bub").data(rows, (d) => d.country).join((enter) => {
+      const ge = enter.append("g").attr("class", "bub");
+      ge.append("circle").attr("class", "all").attr("r", 0);
+      ge.append("circle").attr("class", "iv").attr("r", 0);
+      return ge;
+    }).attr("transform", (d) => `translate(${d.x},${d.y})`);
+    g.select(".all").style("fill", "var(--all)").style("fill-opacity", 0.5)
+      .style("stroke", (d) => (d.country === S.country ? "var(--fg)" : "none")).attr("stroke-width", 2)
+      .transition().duration(dur).attr("r", (d) => d.r);
+    g.select(".iv").style("fill", "var(--invivo)").style("fill-opacity", 0.95).transition().duration(dur).attr("r", (d) => d.ri);
+    renderSizes();
+  }
+  function renderSizes() {
+    const k = ($("#map-svg").getBoundingClientRect().width || 1000) / 1000, r = rScale();
+    const box = $("#sizes"); box.replaceChildren(el("span", { textContent: "Bubble area:" }));
+    for (const v of [10, 100, 500].filter((v) => v <= D.maxAll)) {
+      const rr = Math.max(1.5, r(v) * k), s = d3.create("svg").attr("width", 2 * rr + 2).attr("height", 2 * rr + 2);
+      s.append("circle").attr("cx", rr + 1).attr("cy", rr + 1).attr("r", rr).style("fill", "var(--all)").style("fill-opacity", 0.5);
+      const wrap = el("span"); wrap.append(s.node(), el("span", { textContent: fmt(v) })); box.append(wrap);
+    }
+  }
+  function mapHit(event) {
+    const svg = $("#map-svg"), [px, py] = d3.pointer(event, svg);
+    const k = svg.getBoundingClientRect().width / 1000 || 1;
+    let best = null, gap = Infinity;
+    for (const p of mapPts) { const d = Math.hypot(p.x - px, p.y - py) - p.r; if (d < gap) { gap = d; best = p; } }
+    return best && gap <= 14 / k ? best : null;
+  }
+  function bindMap() {
+    const svg = $("#map-svg"), box = $("#map-box"), node = $("#map-tip");
+    svg.addEventListener("pointermove", (e) => {
+      const p = mapHit(e);
+      if (!p) { node.style.display = "none"; svg.style.cursor = ""; return; }
+      svg.style.cursor = "pointer";
+      const [x, y] = d3.pointer(e, box);
+      tip(box, node, `${p.country} · ${p.year}`, [["var(--all)", "Running trials", fmt(p.all)], ["var(--invivo)", "In vivo", fmt(p.in_vivo)]], x, y);
+    });
+    svg.addEventListener("pointerleave", () => { node.style.display = "none"; });
+    svg.addEventListener("click", (e) => { const p = mapHit(e); if (p) { stop(); set({ country: S.country === p.country ? null : p.country }); } });
+  }
+
+  /* ---------- Lines by region ---------- */
+  function renderLines() {
+    const box = $("#lines"), data = D.byYear, y0sel = year();
+    const series = REGIONS.map(([name, key]) => ({ name, key, color: COLOR[name], values: data }));
+    const first = data.findIndex((d) => d.in_vivo > 0);
+    if (first >= 0) series.push({ name: "In vivo (world)", key: "in_vivo", color: COLOR["In vivo"], dashed: true, values: data.slice(Math.max(0, first - 1)) });
+    const W = Math.max(280, box.clientWidth || 600), H = Math.round(Math.min(340, Math.max(240, W * 0.5)));
+    box.replaceChildren();
+    const svg = d3.select(box).append("svg").attr("width", "100%").attr("viewBox", `0 0 ${W} ${H}`).attr("role", "img").attr("aria-label", "Running trials by region and year");
+    const y0 = 10, bottom = 26;
+    const yMax = d3.max(data, (d) => Math.max(d.china, d.usa, d.europe, d.rest_of_world)) || 1;
+    const yS = d3.scaleLinear([0, yMax * 1.05], [H - bottom, y0]).nice();
+    const ticks = yS.ticks(5);
+    const probe = svg.append("g");
+    const width = (cls, text) => probe.append("g").attr("class", cls).append("text").text(text).node().getComputedTextLength();
+    const tickW = d3.max(ticks, (t) => width("axis", fmt(t)));
+    const ends = series.map((s) => { const v = s.values[s.values.length - 1][s.key]; return { s, v, text: `${s.name} ${fmt(v)}` }; });
+    const endW = d3.max(ends, (e) => width("end", e.text));
+    probe.remove();
+    const left = tickW + 10, right = endW + 26;
+    const xS = d3.scaleLinear([data[0].year, data[data.length - 1].year], [left, W - right]);
+    const g = svg.append("g").attr("class", "axis");
+    for (const t of ticks) {
+      g.append("line").attr("class", t === 0 ? "baseline" : "gridline").attr("x1", left).attr("x2", W - right).attr("y1", yS(t)).attr("y2", yS(t));
+      g.append("text").attr("x", left - 6).attr("y", yS(t)).attr("dy", "0.32em").attr("text-anchor", "end").text(fmt(t));
+    }
+    const yrs = data.map((d) => d.year), step = Math.max(1, Math.ceil((yrs.length * 40) / Math.max(1, W - left - right)));
+    yrs.filter((v, i) => (yrs.length - 1 - i) % step === 0).forEach((v) => g.append("text").attr("x", xS(v)).attr("y", H - 6).attr("text-anchor", "middle").text(v));
+    if (y0sel != null) svg.append("line").attr("class", "rule").attr("x1", xS(y0sel)).attr("x2", xS(y0sel)).attr("y1", y0).attr("y2", H - bottom);
+    for (const s of series) {
+      svg.append("path").attr("class", "series" + (s.dashed ? " dashed" : "")).style("stroke", s.color)
+        .attr("d", d3.line().x((d) => xS(d.year)).y((d) => yS(d[s.key]))(s.values));
+      const row = s.values.find((d) => d.year === y0sel);
+      if (row) svg.append("circle").attr("cx", xS(y0sel)).attr("cy", yS(row[s.key])).attr("r", 3.5).style("fill", s.color);
+    }
+    const gap = 15, placed = ends.map((e) => ({ ...e, ly: yS(e.v) })).sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < placed.length; i++) placed[i].ly = Math.max(placed[i].ly, placed[i - 1].ly + gap);
+    const over = placed.length ? placed[placed.length - 1].ly - (H - bottom) : 0;
+    if (over > 0) placed.forEach((p) => { p.ly -= over; });
+    for (let i = placed.length - 2; i >= 0; i--) placed[i].ly = Math.min(placed[i].ly, placed[i + 1].ly - gap);
+    const eg = svg.append("g").attr("class", "end");
+    for (const p of placed) {
+      const x0 = W - right + 6;
+      eg.append("line").attr("x1", x0).attr("x2", x0 + 10).attr("y1", p.ly).attr("y2", p.ly).style("stroke", p.s.color).attr("stroke-width", 2.2).attr("stroke-dasharray", p.s.dashed ? "3 2" : null);
+      eg.append("text").attr("x", x0 + 14).attr("y", p.ly).attr("dy", "0.32em").text(p.text);
+    }
+    const hover = svg.append("g").style("display", "none").style("pointer-events", "none");
+    const node = el("div", { className: "tip" }); box.append(node);
+    const nearest = (e) => Math.max(yrs[0], Math.min(yrs[yrs.length - 1], Math.round(xS.invert(d3.pointer(e, svg.node())[0]))));
+    svg.append("rect").attr("x", left).attr("y", y0).attr("width", Math.max(0, W - left - right)).attr("height", H - y0 - bottom)
+      .attr("fill", "transparent").style("cursor", "pointer")
+      .on("pointermove", (e) => {
+        const yr = nearest(e), row = data.find((d) => d.year === yr);
+        hover.style("display", null).selectAll("*").remove();
+        hover.append("line").attr("x1", xS(yr)).attr("x2", xS(yr)).attr("y1", y0).attr("y2", H - bottom).style("stroke", "var(--axis)");
+        const items = [];
+        for (const s of series) {
+          const r = s.values.find((d) => d.year === yr); if (!r) continue;
+          hover.append("circle").attr("cx", xS(yr)).attr("cy", yS(r[s.key])).attr("r", 4).style("fill", s.color).style("stroke", "var(--panel)").attr("stroke-width", 1.5);
+          items.push([s.color, s.name, fmt(r[s.key])]);
+        }
+        tip(box, node, String(yr), [[null, "Worldwide", fmt(row.world)], ...items], xS(yr), y0);
+      })
+      .on("pointerleave", () => { hover.style("display", "none"); node.style.display = "none"; })
+      .on("click", (e) => { stop(); set({ year: nearest(e) }); });
+  }
+
+  /* ---------- In vivo bars ---------- */
+  function renderInvivo() {
+    const box = $("#invivo"), y = year(), rows = D.inVivo.filter((r) => r.year === y);
+    $("#no-invivo").hidden = rows.length > 0;
+    box.replaceChildren();
+    const max = d3.max(rows, (r) => r.trials) || 1;
+    for (const group of [...new Set(rows.map((r) => r.group))]) {
+      const gEl = el("div", { className: "bar-group" }, el("div", { className: "bar-title", textContent: group }));
+      for (const r of rows.filter((x) => x.group === group)) {
+        const bar = el("span", { className: "bar" }); bar.style.width = (r.trials / max) * 100 + "%";
+        gEl.append(el("div", { className: "bar-row" }, el("span", { textContent: r.label }), el("span", { className: "bar-track" }, bar), el("span", { className: "bar-val", textContent: fmt(r.trials) })));
+      }
+      box.append(gEl);
+    }
+  }
+
+  /* ---------- Tables ---------- */
+  const td = (text, cls) => el("td", { textContent: text, className: cls || "" });
+  function renderCountries() {
+    const y = year(), rows = D.countryYear.filter((r) => r.year === y).sort((a, b) => b.all - a.all || a.country.localeCompare(b.country));
+    const max = d3.max(rows, (r) => r.all) || 1, tb = $("#ctable tbody"); tb.replaceChildren();
+    for (const r of rows) {
+      const tr = el("tr"); tr.dataset.country = r.country; if (r.country === S.country) tr.className = "is-picked";
+      const bar = el("span", { className: "cellbar" }); bar.style.width = (r.all / max) * 5 + "rem";
+      const all = el("td", { className: "num" }, fmt(r.all), bar);
+      tr.append(td(r.country), td(r.region), all, td(fmt(r.in_vivo), "num")); tb.append(tr);
+    }
+  }
+  function renderRegistries() {
+    const y = year(), rows = D.registries.filter((r) => r.year === y).sort((a, b) => b.in_data - a.in_data || a.registry.localeCompare(b.registry));
+    const tb = $("#rtable tbody"); tb.replaceChildren();
+    for (const r of rows) tb.append(el("tr", {}, td(r.registry), td(fmt(r.in_data), "num"), td(fmt(r.running), "num")));
+  }
+  const COLS = ["id", "title", "countries", "start", "end", "status", "phase", "approach", "indication", "sponsor", "registry", "end_rule"];
+  function trialRows() {
+    const y = year(), q = S.q.toLowerCase();
+    const rows = D.T.filter((t) => (S.allyears || (t.from <= y && t.to >= y))
+      && (!S.country || t.countryList.includes(S.country))
+      && (!S.approach || t.approach === S.approach)
+      && (!S.indication || t.indication === S.indication)
+      && (!q || [t.id, t.title, t.sponsor, t.conditions, t.countries, t.registry].join(" ").toLowerCase().includes(q)));
+    const { key, dir } = S.sort;
+    return rows.sort((a, b) => dir * String(a[key] ?? "").localeCompare(String(b[key] ?? "")));
+  }
+  function recordUrl(t) {
+    const id = t.id.split(" = ")[0];
+    return t.registry === "ClinicalTrials.gov" ? `https://clinicaltrials.gov/study/${encodeURIComponent(id)}` : `https://trialsearch.who.int/Trial2.aspx?TrialID=${encodeURIComponent(id)}`;
+  }
+  function renderTrials() {
+    const rows = trialRows(), tb = $("#ttable tbody"), frag = document.createDocumentFragment();
+    $("#tcount").textContent = fmt(rows.length);
+    for (const t of rows) {
+      const tr = el("tr");
+      for (const c of COLS) {
+        if (c === "id") tr.append(el("td", {}, el("a", { href: recordUrl(t), target: "_blank", rel: "noopener noreferrer", textContent: t.id })));
+        else tr.append(td(t[c] ?? ""));
+      }
+      frag.append(tr);
+    }
+    tb.replaceChildren(frag);
+  }
+
+  /* ---------- Update everything that depends on the choices ---------- */
+  function update() {
+    if (!D) return;
+    const y = year();
+    $$(".sel-year").forEach((e) => { e.textContent = y; });
+    $$(".sel-country").forEach((e) => { e.textContent = S.country || "—"; });
+    $$(".picked").forEach((e) => { e.hidden = !S.country; });
+    $("#when-year").hidden = S.allyears; $("#when-all").hidden = !S.allyears;
+    $("#year").value = y;
+    renderMap(); renderLines(); renderInvivo(); renderCountries(); renderRegistries();
+    if (!S.playing) renderTrials();
+  }
+
+  /* ---------- Play through the years ---------- */
+  let timer = null;
+  function setPlaying(on) { S.playing = on; $("#play").setAttribute("aria-pressed", on); $("#play-go").hidden = on; $("#play-stop").hidden = !on; }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } if (S.playing) { setPlaying(false); renderTrials(); } }
+  function play() {
+    if (timer) { stop(); return; }
+    const ys = D.years; if (year() >= ys[ys.length - 1]) S.year = ys[0];
+    setPlaying(true); set({});
+    timer = setInterval(() => {
+      const i = ys.indexOf(year());
+      if (i < 0 || i >= ys.length - 1) { stop(); return; }
+      set({ year: ys[i + 1] });
+      if (i + 1 === ys.length - 1) stop();
+    }, 900);
+  }
+
+  /* ---------- Controls ---------- */
+  function bindControls() {
+    $("#play").addEventListener("click", play);
+    $("#year").addEventListener("input", (e) => { stop(); set({ year: +e.target.value }); });
+    $$(".clear-country").forEach((b) => b.addEventListener("click", () => set({ country: null })));
+    let qt; $("#q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value.trim(); renderTrials(); }, 200); });
+    $("#approach").addEventListener("change", (e) => { S.approach = e.target.value; renderTrials(); });
+    $("#indication").addEventListener("change", (e) => { S.indication = e.target.value; renderTrials(); });
+    $("#allyears").addEventListener("change", (e) => set({ allyears: e.target.checked }));
+    $("#ctable").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-country]"); if (tr) { stop(); set({ country: S.country === tr.dataset.country ? null : tr.dataset.country }); } });
+    $$("#ttable .sort").forEach((b) => b.addEventListener("click", () => {
+      const key = b.dataset.key;
+      S.sort = { key, dir: S.sort.key === key ? -S.sort.dir : (key === "start" || key === "end" ? -1 : 1) };
+      $$("#ttable th").forEach((th) => { const k = th.querySelector(".sort").dataset.key; th.setAttribute("aria-sort", k === key ? (S.sort.dir > 0 ? "ascending" : "descending") : "none"); });
+      renderTrials();
+    }));
+    let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (D) { renderLines(); renderSizes(); } }, 150); });
+  }
+
+  /* ---------- Start ---------- */
+  bindControls(); bindMap(); readHash();
+  Promise.all([d3.csv("data/trials.csv"), d3.csv("data/world.csv")]).then(([trials, world]) => {
+    D = compute(trials, world);
+    if (!D.years.includes(S.year)) S.year = null;
+    renderSummary(); update();
+  }).catch((err) => {
+    $("#lede").textContent = "The trial data could not be loaded. Please reload the page.";
+    console.error(err);
+  });
+})();
+</script>
+</body>
+</html>
